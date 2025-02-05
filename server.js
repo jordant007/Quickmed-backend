@@ -14,25 +14,24 @@ connectDB()
   .then(() => console.log('Database connected'))
   .catch(err => {
     console.error('Database connection failed:', err);
-    process.exit(1); // Exit if database connection fails
+    process.exit(1); 
   });
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
+  windowMs: 15 * 60 * 1000,
+  max: 100,
   message: 'Too many requests from this IP, please try again after 15 minutes'
 });
 app.use(limiter);
 
-
 // CORS Configuration (Corrected and More Specific)
 const allowedOrigins = [
   'http://localhost:5173', // Development
-  'http://localhost:3000', //If you're using create-react-app
+  'http://localhost:3000', // If you're using create-react-app
   'https://quickmed-frontend.onrender.com', // Production
   process.env.FRONTEND_URL // In case you have other environments
-].filter(Boolean); // Remove any undefined/empty values
+].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -43,31 +42,30 @@ const corsOptions = {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true, // VERY IMPORTANT for sending cookies/auth headers
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Explicitly list allowed methods
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'], // Explicitly list allowed headers
-  exposedHeaders: ['set-cookie'], // If you're setting cookies from the server
-  maxAge: 86400 // Cache CORS preflight response for 24 hours
+  credentials: true, 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], 
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  exposedHeaders: ['set-cookie'], 
+  maxAge: 86400 
 };
 
 app.use(cors(corsOptions)); // CORS MUST be before other routes
 
 // Security Middleware
 app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }, // Adjust as needed
-  crossOriginEmbedderPolicy: false, // Adjust as needed
+  crossOriginResourcePolicy: { policy: "cross-origin" }, 
+  crossOriginEmbedderPolicy: false, 
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      connectSrc: ["'self'", ...allowedOrigins], // Important: Include your allowed origins here too
+      connectSrc: ["'self'", ...allowedOrigins], 
       frameSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"], // Adjust as needed
-      styleSrc: ["'self'", "'unsafe-inline'"], // Adjust as needed
-      imgSrc: ["'self'", "data:", "https:"], // Adjust as needed
+      scriptSrc: ["'self'", "'unsafe-inline'"], 
+      styleSrc: ["'self'", "'unsafe-inline'"], 
+      imgSrc: ["'self'", "data:", "https:"], 
     }
   }
 }));
-
 
 // Body Parser Middleware
 app.use(express.json({ limit: '10mb' }));
@@ -80,11 +78,10 @@ app.use(mongoSanitize());
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin}`);
-    console.log('Body:', JSON.stringify(req.body, null, 2)); // Log request body
+    console.log('Body:', JSON.stringify(req.body, null, 2)); 
     next();
   });
 }
-
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -105,14 +102,13 @@ app.use('/api/medicines', require('./routes/medicineRoutes'));
 app.use((err, req, res, next) => {
   console.error('Error:', err);
 
-  // Specific error handling (example)
   if (err.name === 'ValidationError') {
     return res.status(400).json({ message: 'Validation Error', errors: err.errors });
   }
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({ message: 'CORS Error: Origin not allowed', origin: req.headers.origin });
   }
-    if (err.name === 'MongoError' && err.code === 11000) {
+  if (err.name === 'MongoError' && err.code === 11000) {
     return res.status(409).json({
       status: 'error',
       message: 'Duplicate key error',
@@ -120,10 +116,9 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // Generic error handling (for production)
   res.status(err.status || 500).json({
-    message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message, // Don't send stack trace in production
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }) // Include stack trace in development
+    message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message,
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }) 
   });
 });
 
@@ -158,6 +153,5 @@ process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
   server.close(() => process.exit(1));
 });
-
 
 module.exports = app; // For testing
