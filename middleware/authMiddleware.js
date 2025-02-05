@@ -20,7 +20,7 @@ module.exports = (req, res, next) => {
   } catch (error) {
     console.error('Auth error:', error);
     
-    // Handle specific JWT errors
+    //  specific JWT errors
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Token expired, please sign in again' });
     }

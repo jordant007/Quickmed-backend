@@ -1,3 +1,4 @@
+// server.js
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -8,11 +9,13 @@ const mongoSanitize = require('express-mongo-sanitize');
 
 const app = express();
 
-// Connect Database with error handling
-connectDB().catch(err => {
-  console.error('Database connection failed:', err);
-  process.exit(1);
-});
+// Connect Database
+connectDB()
+  .then(() => console.log('Database connected'))
+  .catch(err => {
+    console.error('Database connection failed:', err);
+    process.exit(1); // Exit if database connection fails
+  });
 
 // Rate limiting
 const limiter = rateLimit({
@@ -20,70 +23,68 @@ const limiter = rateLimit({
   max: 100, // Limit each IP to 100 requests per windowMs
   message: 'Too many requests from this IP, please try again after 15 minutes'
 });
-
-// Apply rate limiter to all routes
 app.use(limiter);
 
-// Security Middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: ["'self'", "https://quickmed-backend-uy9l.onrender.com", "http://localhost:5173"],
-      frameSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      imgSrc: ["'self'", "data:", "https:"],
-    }
-  }
-}));
 
-// CORS Configuration
+// CORS Configuration (Corrected and More Specific)
 const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'https://quickmed-frontend.onrender.com',
-  process.env.FRONTEND_URL
-].filter(Boolean);
+  'http://localhost:5173', // Development
+  'http://localhost:3000', //If you're using create-react-app
+  'https://quickmed-frontend.onrender.com', // Production
+  process.env.FRONTEND_URL // In case you have other environments
+].filter(Boolean); // Remove any undefined/empty values
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.log('Blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  exposedHeaders: ['set-cookie'],
-  maxAge: 86400
+  credentials: true, // VERY IMPORTANT for sending cookies/auth headers
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'], // Explicitly list allowed methods
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'], // Explicitly list allowed headers
+  exposedHeaders: ['set-cookie'], // If you're setting cookies from the server
+  maxAge: 86400 // Cache CORS preflight response for 24 hours
 };
 
+app.use(cors(corsOptions)); // CORS MUST be before other routes
 
-// app.use(cors(corsOptions));
-app.use(cors({ origin: '*' }));
+// Security Middleware
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Adjust as needed
+  crossOriginEmbedderPolicy: false, // Adjust as needed
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", ...allowedOrigins], // Important: Include your allowed origins here too
+      frameSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"], // Adjust as needed
+      styleSrc: ["'self'", "'unsafe-inline'"], // Adjust as needed
+      imgSrc: ["'self'", "data:", "https:"], // Adjust as needed
+    }
+  }
+}));
 
-// Body Parser Middleware with size limits
+
+// Body Parser Middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Data sanitization against NoSQL injection
 app.use(mongoSanitize());
 
-// Middleware for logging requests in development
+// Development Logging (Conditional)
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin}`);
-    console.log('Body:', JSON.stringify(req.body, null, 2));
+    console.log('Body:', JSON.stringify(req.body, null, 2)); // Log request body
     next();
   });
 }
+
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -100,20 +101,18 @@ app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/pharmacies', require('./routes/pharmacyRoutes'));
 app.use('/api/medicines', require('./routes/medicineRoutes'));
 
-// Error handling middleware
+// Error handling middleware (Improved)
 app.use((err, req, res, next) => {
   console.error('Error:', err);
 
-  // Handle specific types of errors
+  // Specific error handling (example)
   if (err.name === 'ValidationError') {
-    return res.status(400).json({
-      status: 'error',
-      message: 'Validation Error',
-      errors: Object.values(err.errors).map(e => e.message)
-    });
+    return res.status(400).json({ message: 'Validation Error', errors: err.errors });
   }
-
-  if (err.name === 'MongoError' && err.code === 11000) {
+  if (err.message === 'Not allowed by CORS') {
+    return res.status(403).json({ message: 'CORS Error: Origin not allowed', origin: req.headers.origin });
+  }
+    if (err.name === 'MongoError' && err.code === 11000) {
     return res.status(409).json({
       status: 'error',
       message: 'Duplicate key error',
@@ -121,34 +120,19 @@ app.use((err, req, res, next) => {
     });
   }
 
-  if (err.message === 'Not allowed by CORS') {
-    return res.status(403).json({
-      status: 'error',
-      message: 'CORS error: Origin not allowed',
-      origin: req.headers.origin
-    });
-  }
-
-  // Default error response
+  // Generic error handling (for production)
   res.status(err.status || 500).json({
-    status: 'error',
-    message: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
-      : err.message,
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack })
+    message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : err.message, // Don't send stack trace in production
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }) // Include stack trace in development
   });
 });
 
-// Handle 404
+// 404 Handler (Keep this at the very end)
 app.use((req, res) => {
-  res.status(404).json({
-    status: 'error',
-    message: 'Route not found',
-    path: req.originalUrl
-  });
+  res.status(404).json({ message: 'Route Not Found' });
 });
 
-// Start server
+// Start Server
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
@@ -156,7 +140,7 @@ const server = app.listen(PORT, () => {
   console.log('Environment:', process.env.NODE_ENV);
 });
 
-// Graceful shutdown
+// Graceful Shutdown (Important)
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
   server.close(() => {
@@ -165,21 +149,15 @@ process.on('SIGTERM', () => {
   });
 });
 
-// Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Promise Rejection:', err);
-  // Give server time to finish current requests before shutting down
-  server.close(() => {
-    process.exit(1);
-  });
+  server.close(() => process.exit(1));
 });
 
-// Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
-  server.close(() => {
-    process.exit(1);
-  });
+  server.close(() => process.exit(1));
 });
 
-module.exports = app; // For testing purposes
+
+module.exports = app; // For testing
