@@ -8,26 +8,27 @@ const app = express();
 // Connect Database
 connectDB();
 
-// Basic Security Middleware with relaxed settings for development
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }
-}));
+// Basic Security Middleware
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  })
+);
 
 // CORS Configuration
 const allowedOrigins = [
-  'http://localhost:5173',  // Vite development server
-  'https://quickmed-frontend.onrender.com', // Your Render.com frontend URL
-  'https://quickmed-backend-uy9l.onrender.com' // Your backend URL (for same-origin requests)
+  'http://localhost:5173',
+  'https://quickmed-frontend.onrender.com',
+  'https://quickmed-backend-uy9l.onrender.com'
 ];
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log('Blocked origin:', origin); // Helpful for debugging
+      console.log('Blocked origin:', origin);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -35,12 +36,12 @@ const corsOptions = {
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin'],
   exposedHeaders: ['set-cookie'],
-  maxAge: 86400 // 24 hours
+  maxAge: 86400
 };
 
 app.use(cors(corsOptions));
 
-// Middleware to log requests in development
+// Middleware for logging requests in development
 if (process.env.NODE_ENV !== 'production') {
   app.use((req, res, next) => {
     console.log(`${req.method} ${req.url} - Origin: ${req.headers.origin}`);
@@ -69,8 +70,7 @@ app.use('/api/medicines', require('./routes/medicineRoutes'));
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err);
-  
-  // Handle CORS errors specifically
+
   if (err.message === 'Not allowed by CORS') {
     return res.status(403).json({
       status: 'error',
@@ -79,7 +79,6 @@ app.use((err, req, res, next) => {
     });
   }
 
-  // Handle other types of errors
   res.status(err.status || 500).json({
     status: 'error',
     message: err.message || 'Internal server error',
@@ -97,7 +96,6 @@ app.use((req, res) => {
 });
 
 const PORT = process.env.PORT || 5000;
-
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log('Allowed origins:', allowedOrigins);
@@ -107,7 +105,6 @@ const server = app.listen(PORT, () => {
 // Handle unhandled promise rejections
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Promise Rejection:', err);
-  // Gracefully close the server
   server.close(() => {
     process.exit(1);
   });
@@ -116,7 +113,6 @@ process.on('unhandledRejection', (err) => {
 // Handle uncaught exceptions
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
-  // Gracefully close the server
   server.close(() => {
     process.exit(1);
   });
