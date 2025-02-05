@@ -66,7 +66,8 @@ const corsOptions = {
 };
 
 
-app.use(cors(corsOptions));
+// app.use(cors(corsOptions));
+app.use(cors({ origin: '*' }));
 
 // Body Parser Middleware with size limits
 app.use(express.json({ limit: '10mb' }));
