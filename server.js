@@ -27,14 +27,15 @@ app.use(limiter);
 // Security Middleware
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" },
-  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" },
+  crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
+      connectSrc: ["'self'", "https://quickmed-backend-uy9l.onrender.com", "http://localhost:5173"],
+      frameSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", process.env.FRONTEND_URL || 'http://localhost:5173']
     }
   }
 }));
@@ -42,15 +43,15 @@ app.use(helmet({
 // CORS Configuration
 const allowedOrigins = [
   'http://localhost:5173',
+  'http://localhost:3000',
   'https://quickmed-frontend.onrender.com',
-  'https://quickmed-backend-uy9l.onrender.com',
-  process.env.FRONTEND_URL // Allow environment-specific frontend URL
-].filter(Boolean); // Remove undefined values
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
       console.log('Blocked origin:', origin);
@@ -59,10 +60,11 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   exposedHeaders: ['set-cookie'],
   maxAge: 86400
 };
+
 
 app.use(cors(corsOptions));
 
