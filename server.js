@@ -4,7 +4,7 @@ const cors = require('cors'); // Added CORS
 const connectDB = require('./config/db');
 
 const app = express();
-
+const inventoryRoutes = require("./routes/inventoryRoutes");
 // Connect Database
 connectDB()
   .then(() => console.log('✅ Database connected'))
@@ -19,6 +19,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
+
+
+app.use("/api/inventory", inventoryRoutes);
+
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/pharmacies', require('./routes/pharmacyRoutes'));
 app.use('/api/medicines', require('./routes/medicineRoutes'));
