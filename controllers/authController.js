@@ -5,8 +5,8 @@ const jwt = require('jsonwebtoken');
 // Signup controller
 exports.signup = async (req, res) => {
     try {
-        const { pharmacyName, email, password, phone, address } = req.body;
-
+        const { pharmacyName, email, password, phone, address, } = req.body;
+       
         // Check if user exists
         let user = await User.findOne({ email });
         if (user) {
