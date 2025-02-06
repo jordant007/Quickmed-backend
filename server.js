@@ -14,7 +14,7 @@ connectDB()
   });
 
 // Middleware
-app.use(cors({ origin: 'http://localhost:5173', credentials: true })); // Enable CORS for frontend
+app.use(cors({ origin: 'http://localhost:5175', credentials: true })); // Enable CORS for frontend
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
