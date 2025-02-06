@@ -5,7 +5,7 @@ const PharmacySchema = new mongoose.Schema({
   address: { type: String, required: true },
   phone: { type: String, required: true },
   email: { type: String, required: true, unique: true },
-  locationLink: { type: String },
+  location: { type: String },
   medicines: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Medicine' }],
 }, { timestamps: true });
 
